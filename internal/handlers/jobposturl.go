@@ -46,6 +46,11 @@ func JobPostUrlHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, sErr.Error(), http.StatusInternalServerError)
 		return
 	} else {
-		fmt.Fprintln(w, s.JobDescription)
+		if s.SearchResults != "" {
+			fmt.Fprintln(w, s.SearchResults)
+		} else {
+			fmt.Fprintln(w, s.JobDescription)
+		}
+
 	}
 }

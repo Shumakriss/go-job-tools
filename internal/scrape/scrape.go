@@ -9,6 +9,7 @@ import (
 type JobPostScraper struct {
 	Url            string
 	JobDescription string
+	SearchResults  string
 }
 
 type UnsupportedSite struct{}
@@ -28,6 +29,10 @@ func (s *JobPostScraper) Scrape() error {
 	} else if strings.Contains(s.Url, "linkedin.com") {
 		//return s.LinkedIn()
 		return &UnsupportedSite{}
+	} else if strings.Contains(s.Url, "https://www.levels.fyi/jobs?jobId=") {
+		return s.LevelsFyiJD()
+	} else if strings.Contains(s.Url, "https://www.levels.fyi/jobs") {
+		return s.LevelsFyiSearch()
 	} else {
 		return &UnsupportedSite{}
 	}
@@ -91,6 +96,74 @@ func (s *JobPostScraper) LinkedIn() error {
 		return err
 	}
 
+	s.JobDescription = result
+
+	return nil
+}
+
+func (s *JobPostScraper) LevelsFyiSearch() error {
+	//fmt.Println("Scraping Levels FYI Search")
+	result := ""
+
+	c := colly.NewCollector()
+
+	c.OnHTML("div", func(e *colly.HTMLElement) {
+		//fmt.Println("Found div")
+		if e.Attr("role") == "button" && strings.Contains(e.Attr("class"), "company-jobs-preview-card_container") {
+			//fmt.Println("It's a company preview")
+			e.ForEach("div",
+				func(i int, child *colly.HTMLElement) {
+					//fmt.Println("Found a job link")
+					if strings.Contains(child.Attr("class"), "company-jobs-preview-card_companyJobsContainer") {
+						child.ForEach("a",
+							func(i int, cc *colly.HTMLElement) {
+								//fmt.Println(cc.Attr("href"))
+								result += cc.Attr("href") + ","
+							})
+					}
+				})
+
+		}
+	})
+
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL.String())
+	})
+
+	err := c.Visit(s.Url)
+
+	if err != nil {
+		return err
+	}
+
+	s.SearchResults = result
+
+	return nil
+}
+
+func (s *JobPostScraper) LevelsFyiJD() error {
+	//fmt.Println("Scraping Levels FYI Search")
+	result := ""
+
+	c := colly.NewCollector()
+
+	c.OnHTML("script", func(e *colly.HTMLElement) {
+		if strings.Contains(e.Attr("id"), "__NEXT_DATA__") {
+			result += e.Text
+		}
+	})
+
+	c.OnRequest(func(r *colly.Request) {
+		fmt.Println("Visiting", r.URL.String())
+	})
+
+	err := c.Visit(s.Url)
+
+	if err != nil {
+		return err
+	}
+
+	//fmt.Println(result)
 	s.JobDescription = result
 
 	return nil
