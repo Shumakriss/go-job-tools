@@ -7,11 +7,11 @@ import (
 	"net/http"
 )
 
-type JobPostRequest struct {
-	JobPostUrl string `json:"job_post_url" bson:"JobPostUrl"`
+type JobRequest struct {
+	Url string `json:"url" bson:"Url"`
 }
 
-func JobPostUrlHandler(w http.ResponseWriter, r *http.Request) {
+func Job(w http.ResponseWriter, r *http.Request) {
 	addCorsHeader(w)
 
 	if r.Method == "OPTIONS" {
@@ -31,7 +31,7 @@ func JobPostUrlHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var p JobPostRequest
+	var p JobRequest
 	decErr := json.NewDecoder(r.Body).Decode(&p)
 
 	if decErr != nil {
@@ -39,18 +39,15 @@ func JobPostUrlHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Handling URL: " + p.JobPostUrl)
-	s := scrape.NewScraper(p.JobPostUrl)
-	sErr := s.Scrape()
+	fmt.Println("Handling URL: " + p.Url)
+	jobDesc, sErr := scrape.ScrapeJob(p.Url)
+
 	if sErr != nil {
 		http.Error(w, sErr.Error(), http.StatusInternalServerError)
 		return
 	} else {
-		if s.SearchResults != "" {
-			fmt.Fprintln(w, s.SearchResults)
-		} else {
-			fmt.Fprintln(w, s.JobDescription)
+		if jobDesc != "" {
+			fmt.Fprintln(w, jobDesc)
 		}
-
 	}
 }

@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/job-post", handlers.JobPostUrlHandler)
+	http.HandleFunc("/job", handlers.Job)
+	http.HandleFunc("/search", handlers.Search)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

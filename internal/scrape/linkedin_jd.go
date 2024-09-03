@@ -3,68 +3,9 @@ package scrape
 import (
 	"fmt"
 	"github.com/gocolly/colly/v2"
-	"strings"
 )
 
-type JobPostScraper struct {
-	Url            string
-	JobDescription string
-	SearchResults  string
-}
-
-type UnsupportedSite struct{}
-
-func (m *UnsupportedSite) Error() string {
-	return "Site requested is unsupported and cannot be scraped"
-}
-
-func NewScraper(url string) JobPostScraper {
-	return JobPostScraper{Url: url}
-}
-
-func (s *JobPostScraper) Scrape() error {
-
-	if strings.Contains(s.Url, "outerjoin.us") {
-		return s.OuterJoin()
-	} else if strings.Contains(s.Url, "linkedin.com") {
-		//return s.LinkedIn()
-		return &UnsupportedSite{}
-	} else if strings.Contains(s.Url, "https://www.levels.fyi/jobs?jobId=") {
-		return s.LevelsFyiJD()
-	} else if strings.Contains(s.Url, "https://www.levels.fyi/jobs") {
-		return s.LevelsFyiSearch()
-	} else {
-		return &UnsupportedSite{}
-	}
-}
-
-func (s *JobPostScraper) OuterJoin() error {
-	result := ""
-	c := colly.NewCollector()
-
-	c.OnHTML("div .job-description", func(e *colly.HTMLElement) {
-		e.ForEach("p",
-			func(i int, child *colly.HTMLElement) {
-				result += child.Text + "\n"
-			})
-	})
-
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL.String())
-	})
-
-	err := c.Visit(s.Url)
-
-	if err != nil {
-		return err
-	}
-
-	s.JobDescription = result
-
-	return nil
-}
-
-func (s *JobPostScraper) LinkedIn() error {
+func LinkedIn(url string) (string, error) {
 	result := ""
 	c := colly.NewCollector()
 
@@ -89,82 +30,12 @@ func (s *JobPostScraper) LinkedIn() error {
 		fmt.Println("Request URL:", r.Request.URL, "failed with response:", r.StatusCode, "\nError:", err)
 	})
 
-	err := c.Visit(s.Url)
+	err := c.Visit(url)
 
 	if err != nil {
 		fmt.Println("Failed to scrape linkedin.com post")
-		return err
+		return "", err
 	}
 
-	s.JobDescription = result
-
-	return nil
-}
-
-func (s *JobPostScraper) LevelsFyiSearch() error {
-	//fmt.Println("Scraping Levels FYI Search")
-	result := ""
-
-	c := colly.NewCollector()
-
-	c.OnHTML("div", func(e *colly.HTMLElement) {
-		//fmt.Println("Found div")
-		if e.Attr("role") == "button" && strings.Contains(e.Attr("class"), "company-jobs-preview-card_container") {
-			//fmt.Println("It's a company preview")
-			e.ForEach("div",
-				func(i int, child *colly.HTMLElement) {
-					//fmt.Println("Found a job link")
-					if strings.Contains(child.Attr("class"), "company-jobs-preview-card_companyJobsContainer") {
-						child.ForEach("a",
-							func(i int, cc *colly.HTMLElement) {
-								//fmt.Println(cc.Attr("href"))
-								result += cc.Attr("href") + ","
-							})
-					}
-				})
-
-		}
-	})
-
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL.String())
-	})
-
-	err := c.Visit(s.Url)
-
-	if err != nil {
-		return err
-	}
-
-	s.SearchResults = result
-
-	return nil
-}
-
-func (s *JobPostScraper) LevelsFyiJD() error {
-	//fmt.Println("Scraping Levels FYI Search")
-	result := ""
-
-	c := colly.NewCollector()
-
-	c.OnHTML("script", func(e *colly.HTMLElement) {
-		if strings.Contains(e.Attr("id"), "__NEXT_DATA__") {
-			result += e.Text
-		}
-	})
-
-	c.OnRequest(func(r *colly.Request) {
-		fmt.Println("Visiting", r.URL.String())
-	})
-
-	err := c.Visit(s.Url)
-
-	if err != nil {
-		return err
-	}
-
-	//fmt.Println(result)
-	s.JobDescription = result
-
-	return nil
+	return result, nil
 }
